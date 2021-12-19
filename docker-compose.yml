@@ -1,0 +1,73 @@
+version: "3.7"
+
+services:
+  app:
+    build:
+      context: .
+      target: exec
+    image: app:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT}:80" # Expose web server port
+    depends_on:
+      - database
+      - redis
+      - redis_search
+    networks:
+      - app
+
+  database:
+    image: mysql:8
+    volumes:
+      - redishop_database:/var/lib/mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - app
+
+  myadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      PMA_HOST: database
+      UPLOAD_LIMIT: 300M
+    depends_on:
+      - database
+    networks:
+      - app
+
+  redis:
+    image: bitnami/redis
+    restart: always
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL,CONFIG
+    volumes:
+      - redishop_redis:/bitnami/redis/data
+    networks:
+      - app
+
+  redis_search:
+    image: redislabs/redisearch
+    restart: always
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL,CONFIG
+    volumes:
+      - redishop_redissearch:/data
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  redishop_redis: { }
+  redishop_redissearch: { }
+  redishop_database: { }
